@@ -101,7 +101,6 @@ func (p *Peer) Join(sid string, sdp webrtc.SessionDescription) (*webrtc.SessionD
 
 	})
 
-	p.pc = pc
 	return answer, nil
 }
 

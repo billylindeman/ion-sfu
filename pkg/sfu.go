@@ -7,52 +7,31 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pborman/uuid"
 	"github.com/pion/sdp/v3"
 	"github.com/pion/webrtc/v3"
-
-	log "github.com/pion/ion-log"
 )
-
-// ICEServerConfig defines parameters for ice servers
-type ICEServerConfig struct {
-	URLs       []string `mapstructure:"urls"`
-	Username   string   `mapstructure:"username"`
-	Credential string   `mapstructure:"credential"`
-}
-
-type Candidates struct {
-	IceLite    bool     `mapstructure:"icelite"`
-	NAT1To1IPs []string `mapstructure:"nat1to1"`
-}
-
-// WebRTCConfig defines parameters for ice
-type WebRTCConfig struct {
-	ICEPortRange []uint16          `mapstructure:"portrange"`
-	ICEServers   []ICEServerConfig `mapstructure:"iceserver"`
-	Candidates   Candidates        `mapstructure:"candidates"`
-	SDPSemantics string            `mapstructure:"sdpsemantics"`
-}
-
-// Config for base SFU
-type Config struct {
-	SFU struct {
-		Ballast int64 `mapstructure:"ballast"`
-	} `mapstructure:"sfu"`
-	WebRTC WebRTCConfig `mapstructure:"webrtc"`
-	Log    log.Config   `mapstructure:"log"`
-	Router RouterConfig `mapstructure:"router"`
-}
 
 // SFU represents an sfu instance
 type SFU struct {
-	webrtc   WebRTCTransportConfig
-	router   RouterConfig
-	mu       sync.RWMutex
-	sessions map[string]*Session
+	webrtc      WebRTCTransportConfig
+	router      RouterConfig
+	mu          sync.RWMutex
+	sessions    map[string]*Session
+	coordinator Coordinator
 }
 
-// NewSFU creates a new sfu instance
+// NewSFU creates a new sfu instance using localCoordinator
 func NewSFU(c Config) *SFU {
+	coordinator := &localCoordinator{
+		nodeID:  uuid.New(),
+		nodeURL: c.NodeURL(),
+	}
+	return NewSFUWithCoordinator(c, coordinator)
+}
+
+// NewSFUWithCoordinator creates an SFU with a passed in coordinator
+func NewSFUWithCoordinator(c Config, coordinator Coordinator) *SFU {
 	// Init random seed
 	rand.Seed(time.Now().UnixNano())
 	// Init ballast
@@ -127,8 +106,9 @@ func NewSFU(c Config) *SFU {
 	}
 
 	s := &SFU{
-		webrtc:   w,
-		sessions: make(map[string]*Session),
+		webrtc:      w,
+		sessions:    make(map[string]*Session),
+		coordinator: coordinator,
 	}
 
 	runtime.KeepAlive(ballast)
@@ -142,6 +122,7 @@ func (s *SFU) newSession(id string) *Session {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		delete(s.sessions, id)
+		s.coordinator.onSessionClosed(id)
 	})
 
 	s.mu.Lock()

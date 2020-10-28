@@ -2,22 +2,30 @@ module github.com/pion/ion-sfu
 
 go 1.13
 
+replace google.golang.org/grpc => google.golang.org/grpc v1.26.0
+
 require (
 	github.com/bep/debounce v1.2.0
+	github.com/coreos/etcd v3.3.13+incompatible
 	github.com/gammazero/deque v0.0.0-20201010052221-3932da5530cc
 	github.com/golang/protobuf v1.4.3
+	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
+	github.com/koding/websocketproxy v0.0.0-20181220232114-7ed82d81a28c
 	github.com/lucas-clemente/quic-go v0.18.1 // indirect
 	github.com/lucsky/cuid v1.0.2
 	github.com/marten-seemann/qtls-go1-15 v0.1.1 // indirect
 	github.com/matryer/moq v0.1.3 // indirect
+	github.com/pborman/uuid v1.2.1
 	github.com/pion/ion-log v0.0.0-20201024224650-e6b94dfeaf1d
 	github.com/pion/rtcp v1.2.4
 	github.com/pion/rtp v1.6.1
+	github.com/pion/sdp/v2 v2.4.0
 	github.com/pion/sdp/v3 v3.0.2
 	github.com/pion/turn/v2 v2.0.5 // indirect
 	github.com/pion/webrtc/v3 v3.0.0-beta.10.0.20201027193323-3e64df35adfa
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20200429184054-15c2290dcb37
+	github.com/spf13/cobra v1.1.1 // indirect
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 // indirect
