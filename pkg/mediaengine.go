@@ -79,6 +79,11 @@ func (e *MediaEngine) PopulateFromSDP(sd webrtc.SessionDescription) error {
 		e.RegisterCodec(codec)
 	}
 
+	if len(e.GetCodecsByName(webrtc.H264)) == 0 {
+		codec := webrtc.NewRTPH264CodecExt(webrtc.DefaultPayloadTypeH264, 90000, rtcpfb, "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f")
+		e.RegisterCodec(codec)
+	}
+
 	if len(e.GetCodecsByName(webrtc.VP8)) == 0 {
 		codec := webrtc.NewRTPVP8CodecExt(webrtc.DefaultPayloadTypeVP8, 90000, rtcpfb, "")
 		e.RegisterCodec(codec)
@@ -86,11 +91,6 @@ func (e *MediaEngine) PopulateFromSDP(sd webrtc.SessionDescription) error {
 
 	if len(e.GetCodecsByName(webrtc.VP9)) == 0 {
 		codec := webrtc.NewRTPVP9CodecExt(webrtc.DefaultPayloadTypeVP9, 90000, rtcpfb, "")
-		e.RegisterCodec(codec)
-	}
-
-	if len(e.GetCodecsByName(webrtc.H264)) == 0 {
-		codec := webrtc.NewRTPH264CodecExt(webrtc.DefaultPayloadTypeH264, 90000, rtcpfb, "")
 		e.RegisterCodec(codec)
 	}
 
