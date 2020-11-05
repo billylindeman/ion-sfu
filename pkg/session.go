@@ -36,11 +36,13 @@ func (s *Session) RemoveTransport(tid string) {
 	defer s.mu.Unlock()
 
 	log.Infof("RemoveTransport %s from session %s", tid, s.id)
-	delete(s.transports, tid)
+	if _, ok := s.transports[tid]; ok {
+		delete(s.transports, tid)
 
-	// Close session if no transports
-	if len(s.transports) == 0 && s.onCloseHandler != nil {
-		s.onCloseHandler()
+		// Close session if no transports
+		if len(s.transports) == 0 && s.onCloseHandler != nil {
+			s.onCloseHandler()
+		}
 	}
 }
 
