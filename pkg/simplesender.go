@@ -63,7 +63,7 @@ func (s *SimpleSender) ID() string {
 func (s *SimpleSender) Start() {
 	s.start.Do(func() {
 		log.Debugf("starting sender %s with ssrc %d", s.id, s.track.SSRC())
-		s.reSync.set(true)
+		s.reSync.set(false)
 		s.enabled.set(true)
 	})
 }
