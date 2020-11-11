@@ -179,3 +179,40 @@ func setNBitsOfUint16(src, size, startIndex, val uint16) uint16 {
 	val &= (1 << size) - 1
 	return src | (val << (16 - size - startIndex))
 }
+
+const (
+	naluTypeIDR   = 5
+	naluTypeSPS   = 7
+	naluTypePPS   = 8
+	naluTypeSTAPA = 24
+)
+
+type h264Nalu struct {
+	NaluType   int
+	Aggregated []h264Nalu
+}
+
+func (h *h264Nalu) Unmarshal(b []byte) error {
+	return nil
+}
+
+func (h *h264Nalu) HasKeyframe() bool {
+	if len(h.Aggregated) > 0 {
+		var sps, pps, idr = false, false, false
+
+		for _, p := range h.Aggregated {
+			switch p.NaluType {
+			case naluTypeIDR:
+				idr = true
+			case naluTypeSPS:
+				sps = true
+			case naluTypePPS:
+				pps = true
+			}
+		}
+
+		return (sps && pps) || idr
+	}
+
+	return h.NaluType == naluTypeIDR
+}
