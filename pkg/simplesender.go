@@ -139,9 +139,9 @@ func (s *SimpleSender) Mute(val bool) {
 		return
 	}
 	s.enabled.set(!val)
-	if val {
-		s.reSync.set(val)
-	}
+	// if val {
+		// s.reSync.set(val)
+	// }
 }
 
 func (s *SimpleSender) Kind() webrtc.RTPCodecType {

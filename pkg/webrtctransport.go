@@ -90,12 +90,29 @@ func NewWebRTCTransport(session *Session, me MediaEngine, cfg WebRTCTransportCon
 		log.Debugf("ice connection state: %s", connectionState)
 		switch connectionState {
 		case webrtc.ICEConnectionStateConnected:
+			p.mu.Lock()
+			defer p.mu.Unlock()
+
 			p.subOnce.Do(func() {
 				// Subscribe to existing transports
 				p.session.Subscribe(p)
 			})
-		// case webrtc.ICEConnectionStateFailed:
-			// fallthrough
+			
+			for _, sendersForStream := range p.senders {
+				for _, s := range sendersForStream {
+					s.Mute(false)
+				}
+			}
+
+		case webrtc.ICEConnectionStateDisconnected:
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			for _, sendersForStream := range p.senders {
+				for _, s := range sendersForStream {
+					s.Mute(true)
+				}
+			}
+		
 		case webrtc.ICEConnectionStateClosed:
 			p.closeOnce.Do(func() {
 				log.Debugf("webrtc ice closed for peer: %s", p.id)
@@ -118,11 +135,7 @@ func NewWebRTCTransport(session *Session, me MediaEngine, cfg WebRTCTransportCon
 
 // CreateOffer generates the localDescription
 func (p *WebRTCTransport) CreateOffer() (webrtc.SessionDescription, error) {
-	// restartIce := p.pc.ICEConnectionState() == webrtc.ICEConnectionStateFailed
-	restartIce := false
-	return p.pc.CreateOffer(
-		&webrtc.OfferOptions{ICERestart: restartIce,
-	})
+	return p.pc.CreateOffer(nil)
 }
 
 // SetLocalDescription sets the SessionDescription of the remote peer
