@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	log "github.com/pion/ion-log"
 	"github.com/pion/webrtc/v3"
@@ -37,7 +36,7 @@ type Peer struct {
 
 	remoteMakingOffer        atomicBool
 	remoteAnswerPending      atomicBool
-	waitForRemoteToSetAnswer atomicBool
+	waitForRemoteToAckAnswer atomicBool
 	negotiationPending       atomicBool
 }
 
@@ -86,19 +85,18 @@ func (p *Peer) Join(sid string, sdp webrtc.SessionDescription) (*webrtc.SessionD
 	log.Infof("peer %s send answer", p.pc.ID())
 
 	pc.OnNegotiationNeeded(func() {
-		p.Lock()
-		defer p.Unlock()
-
 		if p.remoteAnswerPending.get() {
 			log.Debugf("peer negotiation race: waiting for remote to answer (set negotiationPending)")
 			p.negotiationPending.set(true)
 			return
 		}
-		if p.waitForRemoteToSetAnswer.get() {
-			log.Debugf("peer negotiation race: waiting while remote sets answer (set negotiationPending)")
+		if p.waitForRemoteToAckAnswer.get() {
+			log.Debugf("peer negotiation race: waiting while remote acks answer (set negotiationPending)")
 			p.negotiationPending.set(true)
 			return
 		}
+		p.Lock()
+		defer p.Unlock()
 
 		log.Debugf("peer %s negotiation needed", p.pc.ID())
 		offer, err := pc.CreateOffer()
@@ -148,8 +146,8 @@ func (p *Peer) Answer(sdp webrtc.SessionDescription) (*webrtc.SessionDescription
 	}
 	p.Lock()
 	defer p.Unlock()
-	log.Infof("peer %s got offer", p.pc.ID())
 
+	log.Infof("peer %s got offer", p.pc.ID())
 	readyForOffer := p.pc.SignalingState() == webrtc.SignalingStateStable && !p.remoteAnswerPending.get()
 
 	if !readyForOffer {
@@ -172,20 +170,25 @@ func (p *Peer) Answer(sdp webrtc.SessionDescription) (*webrtc.SessionDescription
 	}
 	log.Infof("peer %s send answer", p.pc.ID())
 
-	// lets delay our own pending negotiations for at least 1s
+	// this will block future negotiations until the client has signaled the all-clear to us
 	// this allows the client time to set our answer and resolve its races
-	p.waitForRemoteToSetAnswer.set(true)
-	defer func() {
-		//todo: require remote to ack our answer
-		time.Sleep(1000 * time.Millisecond)
-		p.waitForRemoteToSetAnswer.set(false)
-		log.Infof("peer timer expired lets retrigger negotiations")
-		if p.negotiationPending.get() {
-			go p.pc.negotiate()
-		}
-	}()
+	p.waitForRemoteToAckAnswer.set(true)
 
 	return &answer, nil
+}
+
+// AnswerAck is called AFTER the client has setRemoteDescription for our answer to THEIR offer
+// We block future negotiations until the remote has sent us the a-ok
+func (p *Peer) AnswerAck() {
+	p.Lock()
+	defer p.Unlock()
+
+	p.waitForRemoteToAckAnswer.set(false)
+	log.Infof("peer acked our answer")
+	if p.negotiationPending.get() {
+		log.Infof("\tpeer retriggering pending negotiation")
+		go p.pc.negotiate()
+	}
 }
 
 // SetRemoteDescription when receiving an answer from remote
