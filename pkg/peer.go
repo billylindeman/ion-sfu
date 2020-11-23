@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	log "github.com/pion/ion-log"
 	"github.com/pion/webrtc/v3"
@@ -34,8 +35,10 @@ type Peer struct {
 	OnOffer                    func(*webrtc.SessionDescription)
 	OnICEConnectionStateChange func(webrtc.ICEConnectionState)
 
-	remoteAnswerPending atomicBool
-	negotiationPending  atomicBool
+	remoteMakingOffer        atomicBool
+	remoteAnswerPending      atomicBool
+	waitForRemoteToSetAnswer atomicBool
+	negotiationPending       atomicBool
 }
 
 // NewPeer creates a new Peer for signaling with the given SFU
@@ -87,7 +90,12 @@ func (p *Peer) Join(sid string, sdp webrtc.SessionDescription) (*webrtc.SessionD
 		defer p.Unlock()
 
 		if p.remoteAnswerPending.get() {
-			log.Debugf("peer got negotiation needed race, set negotiationPending")
+			log.Debugf("peer negotiation race: waiting for remote to answer (set negotiationPending)")
+			p.negotiationPending.set(true)
+			return
+		}
+		if p.waitForRemoteToSetAnswer.get() {
+			log.Debugf("peer negotiation race: waiting while remote sets answer (set negotiationPending)")
 			p.negotiationPending.set(true)
 			return
 		}
@@ -107,7 +115,7 @@ func (p *Peer) Join(sid string, sdp webrtc.SessionDescription) (*webrtc.SessionD
 
 		p.remoteAnswerPending.set(true)
 		if p.OnOffer != nil {
-			log.Infof("peer %s send offer (remotetAnswerPending=true)", p.pc.ID())
+			log.Infof("peer %s send offer (remoteAnswerPending=true)", p.pc.ID())
 			p.OnOffer(&offer)
 		}
 	})
@@ -163,6 +171,19 @@ func (p *Peer) Answer(sdp webrtc.SessionDescription) (*webrtc.SessionDescription
 		return nil, fmt.Errorf("error setting local description: %v", err)
 	}
 	log.Infof("peer %s send answer", p.pc.ID())
+
+	// lets delay our own pending negotiations for at least 1s
+	// this allows the client time to set our answer and resolve its races
+	p.waitForRemoteToSetAnswer.set(true)
+	defer func() {
+		//todo: require remote to ack our answer
+		time.Sleep(1000 * time.Millisecond)
+		p.waitForRemoteToSetAnswer.set(false)
+		log.Infof("peer timer expired lets retrigger negotiations")
+		if p.negotiationPending.get() {
+			go p.pc.negotiate()
+		}
+	}()
 
 	return &answer, nil
 }

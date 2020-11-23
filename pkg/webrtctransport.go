@@ -2,9 +2,7 @@ package sfu
 
 import (
 	"sync"
-	"time"
 
-	"github.com/bep/debounce"
 	"github.com/gammazero/deque"
 
 	"github.com/lucsky/cuid"
@@ -224,10 +222,11 @@ func (p *WebRTCTransport) OnICEConnectionStateChange(f func(connectionState webr
 
 // OnNegotiationNeeded handler
 func (p *WebRTCTransport) OnNegotiationNeeded(f func()) {
-	debounced := debounce.New(100 * time.Millisecond)
-	p.negotiate = func() {
-		debounced(f)
-	}
+	// debounced := debounce.New(500 * time.Millisecond)
+	// p.negotiate = func() {
+	// debounced(f)
+	// }
+	p.negotiate = f
 }
 
 // OnTrack handler
