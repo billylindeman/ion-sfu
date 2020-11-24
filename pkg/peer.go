@@ -57,6 +57,8 @@ func (p *Peer) Join(sid string, sdp webrtc.SessionDescription) (*webrtc.SessionD
 	p.Lock()
 	defer p.Unlock()
 
+	p.remoteMakingOffer.set(true)
+
 	me := MediaEngine{}
 	err := me.PopulateFromSDP(sdp)
 	if err != nil {
