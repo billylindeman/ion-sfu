@@ -34,10 +34,11 @@ type Peer struct {
 	OnOffer                    func(*webrtc.SessionDescription)
 	OnICEConnectionStateChange func(webrtc.ICEConnectionState)
 
-	remoteMakingOffer        atomicBool
-	remoteAnswerPending      atomicBool
-	waitForRemoteToAckAnswer atomicBool
-	negotiationPending       atomicBool
+	remoteMakingOffer atomicBool
+	readyForOfferCb   func()
+
+	remoteAnswerPending atomicBool
+	negotiationPending  atomicBool
 }
 
 // NewPeer creates a new Peer for signaling with the given SFU
@@ -90,7 +91,7 @@ func (p *Peer) Join(sid string, sdp webrtc.SessionDescription) (*webrtc.SessionD
 			p.negotiationPending.set(true)
 			return
 		}
-		if p.waitForRemoteToAckAnswer.get() {
+		if p.remoteMakingOffer.get() {
 			log.Debugf("peer negotiation race: waiting while remote acks answer (set negotiationPending)")
 			p.negotiationPending.set(true)
 			return
@@ -137,6 +138,25 @@ func (p *Peer) Join(sid string, sdp webrtc.SessionDescription) (*webrtc.SessionD
 	})
 
 	return &answer, nil
+
+}
+
+// PreOffer blocks until we're ready for an offer
+func (p *Peer) PreOffer(cb func()) {
+	p.Lock()
+	defer p.Unlock()
+
+	log.Infof("peer pre-offer")
+	p.remoteMakingOffer.set(true)
+
+	p.readyForOfferCb = cb
+	readyForOffer := p.pc.SignalingState() == webrtc.SignalingStateStable && !p.remoteAnswerPending.get()
+	if readyForOffer {
+		log.Infof("peer pre-offer ready")
+		p.readyForOfferCb()
+	} else {
+		log.Infof("peer pre-offer waiting")
+	}
 }
 
 // Answer an offer from remote
@@ -170,10 +190,6 @@ func (p *Peer) Answer(sdp webrtc.SessionDescription) (*webrtc.SessionDescription
 	}
 	log.Infof("peer %s send answer", p.pc.ID())
 
-	// this will block future negotiations until the client has signaled the all-clear to us
-	// this allows the client time to set our answer and resolve its races
-	p.waitForRemoteToAckAnswer.set(true)
-
 	return &answer, nil
 }
 
@@ -183,7 +199,8 @@ func (p *Peer) AnswerAck() {
 	p.Lock()
 	defer p.Unlock()
 
-	p.waitForRemoteToAckAnswer.set(false)
+	p.remoteMakingOffer.set(false)
+	p.readyForOfferCb = nil
 	log.Infof("peer acked our answer")
 	if p.negotiationPending.get() {
 		log.Infof("\tpeer retriggering pending negotiation")
@@ -206,10 +223,17 @@ func (p *Peer) SetRemoteDescription(sdp webrtc.SessionDescription) error {
 
 	p.remoteAnswerPending.set(false)
 
+	if p.remoteMakingOffer.get() && p.readyForOfferCb != nil {
+		log.Infof("peer ready for pre-offer")
+		go p.readyForOfferCb()
+		return nil
+	}
+
 	if p.negotiationPending.get() {
 		log.Debugf("peer re-triggering negotiation")
 		p.negotiationPending.set(false)
 		go p.pc.negotiate()
+		return nil
 	}
 
 	return nil
