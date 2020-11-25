@@ -88,6 +88,9 @@ func (p *Peer) Join(sid string, sdp webrtc.SessionDescription) (*webrtc.SessionD
 	log.Infof("peer %s send answer", p.pc.ID())
 
 	pc.OnNegotiationNeeded(func() {
+		p.Lock()
+		defer p.Unlock()
+
 		if p.remoteAnswerPending.get() {
 			log.Debugf("peer negotiation race: waiting for remote to answer (set negotiationPending)")
 			p.negotiationPending.set(true)
@@ -98,8 +101,6 @@ func (p *Peer) Join(sid string, sdp webrtc.SessionDescription) (*webrtc.SessionD
 			p.negotiationPending.set(true)
 			return
 		}
-		p.Lock()
-		defer p.Unlock()
 
 		log.Debugf("peer %s negotiation needed", p.pc.ID())
 		offer, err := pc.CreateOffer()
