@@ -27,9 +27,9 @@ type Candidates struct {
 
 // WebRTCTransportConfig represents configuration options
 type WebRTCTransportConfig struct {
-	configuration webrtc.Configuration
-	setting       webrtc.SettingEngine
-	router        RouterConfig
+	Configuration webrtc.Configuration
+	Setting       webrtc.SettingEngine
+	Router        RouterConfig
 }
 
 // WebRTCConfig defines parameters for ice
@@ -129,16 +129,16 @@ func NewWebRTCTransportConfig(c Config) WebRTCTransportConfig {
 	}
 
 	w := WebRTCTransportConfig{
-		configuration: webrtc.Configuration{
+		Configuration: webrtc.Configuration{
 			ICEServers:   iceServers,
 			SDPSemantics: sdpsemantics,
 		},
-		setting: se,
-		router:  c.Router,
+		Setting: se,
+		Router:  c.Router,
 	}
 
 	if len(c.WebRTC.Candidates.NAT1To1IPs) > 0 {
-		w.setting.SetNAT1To1IPs(c.WebRTC.Candidates.NAT1To1IPs, webrtc.ICECandidateTypeHost)
+		w.Setting.SetNAT1To1IPs(c.WebRTC.Candidates.NAT1To1IPs, webrtc.ICECandidateTypeHost)
 	}
 
 	return w

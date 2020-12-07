@@ -36,8 +36,8 @@ type Subscriber struct {
 
 // NewSubscriber creates a new Subscriber
 func NewSubscriber(session *Session, id string, me MediaEngine, cfg WebRTCTransportConfig) (*Subscriber, error) {
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(me.MediaEngine), webrtc.WithSettingEngine(cfg.setting))
-	pc, err := api.NewPeerConnection(cfg.configuration)
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(me.MediaEngine), webrtc.WithSettingEngine(cfg.Setting))
+	pc, err := api.NewPeerConnection(cfg.Configuration)
 
 	if err != nil {
 		log.Errorf("NewPeer error: %v", err)

@@ -23,8 +23,8 @@ type Publisher struct {
 
 // NewPublisher creates a new Publisher
 func NewPublisher(session *Session, id string, me MediaEngine, cfg WebRTCTransportConfig) (*Publisher, error) {
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(me.MediaEngine), webrtc.WithSettingEngine(cfg.setting))
-	pc, err := api.NewPeerConnection(cfg.configuration)
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(me.MediaEngine), webrtc.WithSettingEngine(cfg.Setting))
+	pc, err := api.NewPeerConnection(cfg.Configuration)
 
 	if err != nil {
 		log.Errorf("NewPeer error: %v", err)
@@ -35,7 +35,7 @@ func NewPublisher(session *Session, id string, me MediaEngine, cfg WebRTCTranspo
 		id:      id,
 		pc:      pc,
 		session: session,
-		router:  newRouter(pc, id, cfg.router),
+		router:  newRouter(pc, id, cfg.Router),
 	}
 
 	pc.OnTrack(func(track *webrtc.Track, receiver *webrtc.RTPReceiver) {
