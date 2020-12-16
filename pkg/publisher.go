@@ -68,8 +68,8 @@ func NewPublisher(session *Session, id string, me MediaEngine, cfg WebRTCTranspo
 			})
 		}
 
-		if handler, ok := p.onICEConnectionStateChangeHandler.Load().(func()); ok && handler != nil {
-			handler()
+		if handler, ok := p.onICEConnectionStateChangeHandler.Load().(func(webrtc.ICEConnectionState)); ok && handler != nil {
+			handler(connectionState)
 		}
 	})
 
